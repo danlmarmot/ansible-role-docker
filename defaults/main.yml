@@ -1,0 +1,13 @@
+---
+role_name: docker
+
+docker_apt_repo_keyserver: hkp://p80.pool.sks-keyservers.net:80
+docker_apt_repo_keyid: 36A1D7869245C8950F966E92D8576A8BA88D21E9
+
+docker_pkg_name: docker-engine
+docker_pkg_version: 1.11.1
+
+docker_compose_install: true
+docker_compose_version: 1.7.1
+
+local_apt_repo: /usr/local/deb-repo

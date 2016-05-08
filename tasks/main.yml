@@ -1,0 +1,96 @@
+---
+# Installs docker
+
+- name: Starting docker role
+  debug:
+    msg: "{{ lookup('pipe','date') }}"
+
+# Look for the shared_folder variable for Vagrant-based installs
+- name: Look for Vagrant shared folder
+  stat: path=/home/vagrant/shared/installers/
+  register: shared_folder
+
+- name: Default to installing docker
+  set_fact:
+    docker_install_flag: true
+
+- name: Get current docker version
+  shell: docker -v 2>&1 | egrep -o '[0-9]+\.[0-9]+\.[0-9]+'
+  register: docker_version_cmd
+  ignore_errors: yes
+  changed_when: false
+
+- name: Set docker_install_flag to false if docker version is already installed
+  set_fact:
+    docker_install_flag: false
+  when: docker_version_cmd.rc == 0 and (docker_pkg_version == docker_version_cmd.stdout)
+
+- name: Add GPG key for Docker
+  apt_key:
+    keyserver: "{{ docker_apt_repo_keyserver }}"
+    id: "{{ docker_apt_repo_keyid }}"
+  when: docker_install_flag == true
+
+- name: Look for existing docker Ubuntu repository
+  stat: path="/etc/apt/sources.list.d/apt_dockerproject_org_repo.list"
+  register: docker_repo_file
+  when: docker_install_flag == true
+
+- name: Add docker repository, as needed
+  apt_repository:
+    repo: "deb https://apt.dockerproject.org/repo ubuntu-{{ ansible_distribution_release }} main"
+  when: docker_install_flag == true and docker_repo_file.stat.exists == false
+
+- name: Update apt-cache if older than two hours
+  apt:
+    update_cache: yes
+    cache_valid_time: 7200
+  when: docker_install_flag == true
+
+# For Vagrant-managed environments
+- include: install-from-shared-dir.yml
+  when: shared_folder.stat.exists and docker_install_flag == true and "vagrant_managed" in group_names
+
+- name: Install docker
+  apt:
+    pkg: "{{ item }}"
+    state: installed
+    force: yes
+  with_items:
+    - docker-engine
+
+#- name: Set docker to start at boot
+#  service:
+#    name: docker
+#    enabled: yes
+#
+#- name: Update docker.yml config file
+#  template:
+#    src: docker.yml.j2
+#    dest: /etc/docker/docker.yml
+#    owner: root
+#    group: docker
+#    mode: 0750
+#  notify:
+#    - Restart docker handler
+
+- name: Get current docker-compose version
+  shell: /usr/local/bin/docker-compose -v 2>&1 | egrep -o '[0-9]+\.[0-9]+\.[0-9]+'
+  register: dcompose_version_cmd
+  ignore_errors: yes
+  changed_when: false
+  when: docker_compose_install == true
+
+- name: Set dcompose_install_flag to false if docker version is already installed
+  set_fact:
+    docker_compose_install: false
+  when: dcompose_version_cmd.rc == 0 and (docker_compose_version == dcompose_version_cmd.stdout)
+
+# For Vagrant-managed environments
+- name: Include docker compose tasks
+  include: install-docker-compose.yml
+  when: docker_compose_install == true
+
+- name: Finished with docker role
+  debug:
+    msg: "{{ lookup('pipe','date') }}"

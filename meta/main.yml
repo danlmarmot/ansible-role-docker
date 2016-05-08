@@ -1,0 +1,5 @@
+---
+# Included for completeness; this role has no dependencies
+#
+#dependencies:
+#  - { role: oracle_java }
